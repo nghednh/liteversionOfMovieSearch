@@ -32,6 +32,7 @@ schema = Schema(
 # Index directory
 index_dir = "movie_text_index"
 
+
 # Function to check if index exists, if not create it
 def get_index():
     if os.path.exists(index_dir):
@@ -45,6 +46,7 @@ def get_index():
         print("Index directory not found, creating a new one.")  # Directory doesn't exist
         os.makedirs(index_dir)  # Create the directory if it doesn't exist
         return create_in(index_dir, schema)  # Create the index
+
 
 # Function to update index without reindexing everything
 def update_index():
@@ -68,14 +70,15 @@ def update_index():
 
 # Process the user's query (NLP model analysis)
 def process_query(query):
-    # print(f"Processing query: {query}")  # Debugging statement
-    query_embedding = nlp_model(query)
-    return query_embedding
+    # Ensure query is a string
+    query_str = str(query)
+    embeddings = nlp_model(query_str)
+    return embeddings[0] if isinstance(embeddings, list) else embeddings
 
 
 # Function to expand query using NLP (e.g., synonym expansion)
 def expand_query(query):
-    doc = nlp(query)
+    doc = nlp(str(query))
     expanded_query = query
     for token in doc:
         # Example: If token has synonyms, add them to the query
@@ -85,18 +88,20 @@ def expand_query(query):
                 expanded_query += " " + " ".join(synonyms)  # Join synonyms as space-separated string
     return expanded_query
 
+
 # Function to get synonyms (optional, for now returns an empty list)
 def get_synonyms(text):
     return []  # Placeholder for any synonym-fetching logic
 
-# Search movies based on user input
-from whoosh.qparser import MultifieldParser
-from whoosh.index import open_dir
 
+# Search movies based on user input
 def search_movies(query, top_k=10):
-    # Assuming expand_query() and process_query() are defined elsewhere
-    expanded_query = expand_query(query)  # Expand the query
-    query_embedding = process_query(expanded_query)  # Use expanded query for NLP processing
+    # Ensure query is a string
+    query_str = str(query)
+
+    # Expand and process query
+    expanded_query = expand_query(query_str)
+    query_embedding = process_query(expanded_query)
 
     ix = get_index()  # Open the existing index
     seen_movie_ids = set()  # To track already seen movie IDs and names
@@ -130,8 +135,8 @@ def search_movies(query, top_k=10):
 
 # Main execution
 if __name__ == "__main__":
-    update_index()  # Uncomment this to update the index with the latest data
-    query = "Moana"  # Example query
+    # update_index()  # Uncomment this to update the index with the latest data
+    query = "Dog"  # Example query
     results = search_movies(query)  # Search for movies matching the query
 
     if results:
