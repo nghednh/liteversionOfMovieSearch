@@ -55,6 +55,17 @@ def process_images_concurrently(image_urls):
     return np.array(embeddings)
 
 
+# Function to process images in batches and extract embeddings
+def batch_process_images(image_urls, batch_size=10):
+    all_embeddings = []
+    # Process images in batches to increase efficiency
+    for i in range(0, len(image_urls), batch_size):
+        batch = image_urls[i:i+batch_size]
+        batch_embeddings = process_images_concurrently(batch)
+        all_embeddings.append(batch_embeddings)
+    return np.vstack(all_embeddings)
+
+
 # Index movie posters in FAISS and save to disk
 def index_images():
     print("Indexing movie images.")  # Debugging statement
@@ -71,7 +82,7 @@ def index_images():
     existing_image_urls_set = set(existing_image_urls) if existing_image_urls else set()
 
     # Loop through movies and extract image URLs
-    for movie in collection.find().limit(1):
+    for movie in collection.find().limit(15):
         for img_url in movie['images']:
             if img_url not in existing_image_urls_set:
                 image_urls.append(img_url)
@@ -81,8 +92,8 @@ def index_images():
         print("No new images to index.")
         return
 
-    # Use concurrent processing to extract embeddings for new images
-    image_embeddings = process_images_concurrently(image_urls)  # Concurrency added here
+    # Use concurrent processing to extract embeddings for new images (Batching added here)
+    image_embeddings = batch_process_images(image_urls)  # Batching and concurrency here
 
     # If the index is empty, create a new one
     if index is None:
@@ -181,4 +192,3 @@ if __name__ == "__main__":
         best_match_movie = vote_for_best_match(similar_movies)
 
         print(f"Best matched movie: {best_match_movie['name']}")  # Assuming the movie document contains a 'name' field
-

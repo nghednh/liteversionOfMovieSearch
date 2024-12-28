@@ -1,5 +1,5 @@
 import requests
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING, TEXT
 
 # MongoDB Atlas Connection String
 MONGO_URI = "mongodb+srv://nghednh:123@cluster0.llhn1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
