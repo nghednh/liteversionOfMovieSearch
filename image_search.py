@@ -84,7 +84,7 @@ def index_images():
 
     while True:  # Loop to process batches
         document_count = 0  # Initialize a counter
-        for movie in collection.find():
+        for movie in collection.find().limit(10):
             document_count += 1  # Increment the counter for each document
             print(f"Reading document {document_count}")
             start_index = processed_count * 5  # Calculate batch start
