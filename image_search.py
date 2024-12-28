@@ -83,21 +83,35 @@ def index_images():
     existing_image_urls_set = set(existing_image_urls) if existing_image_urls else set()
 
     while True:  # Loop to process batches
-        document_count = 0  # Initialize a counter
-        for movie in collection.find().limit(10):
-            document_count += 1  # Increment the counter for each document
-            print(f"Reading document {document_count}")
+        document_count = 0  # Initialize a counter for each batch
+        for movie in collection.find().limit(200):
             start_index = processed_count * 5  # Calculate batch start
             end_index = start_index + 5  # Calculate batch end
             batch_urls = movie['images'][start_index:end_index]  # Slice batch
 
+            image_urls_for_movie = []  # List to hold image URLs for the current document
+
             for img_url in batch_urls:
                 if img_url not in existing_image_urls_set:
-                    image_urls.append(img_url)
+                    image_urls_for_movie.append(img_url)
 
-        # If no new images, return without doing anything
+            # After processing all image URLs for the current movie document
+            if image_urls_for_movie:
+                image_urls.extend(image_urls_for_movie)  # Add valid image URLs to the main list
+                document_count += 1  # Increment the document count after processing
+                print(document_count)
+        # If no new images, exit the loop
         if not image_urls:
-            return
+            user_input = input(
+                "No new images to process. Do you want to continue with the next batch? (yes/no): ").strip().lower()
+            if user_input not in ["yes", "y"]:
+                print("Batch processing stopped by user.")
+                return  # Stop the batch processing if the user decides not to continue
+            else:
+                # User decided to continue, so increment processed_count and fetch the next batch
+                processed_count += 1
+                return
+                # continue  # Proceed with the next batch
 
         # Use concurrent processing to extract embeddings for new images
         image_embeddings = batch_process_images(image_urls)  # Batching and concurrency here
@@ -112,23 +126,25 @@ def index_images():
         # Save the updated FAISS index to a file
         faiss.write_index(index, INDEX_FILE)
 
+        # Merge new image URLs with existing ones
         all_image_urls = (existing_image_urls if existing_image_urls else []) + image_urls
 
+        # Save updated image URLs to a file
         with open(IMAGE_URLS_FILE, "wb") as f:
             pickle.dump(all_image_urls, f)
 
-        print(f"Processed batch {processed_count + 1}: {len(image_urls)} images indexed.")
+        print(
+            f"Processed batch {processed_count + 1}: {len(image_urls)} images indexed. Document count: {document_count}.")
 
         # Ask the user whether to continue
         user_input = input("Continue with the next batch? (yes/no): ").strip().lower()
         if user_input not in ["yes", "y"]:
             print("Batch processing stopped by user.")
-            break  # Properly break out of the while loop
+            break  # Break out of the while loop if the user chooses to stop
 
         # Increment processed_count and reset for the next batch
         processed_count += 1
-        image_urls = []  # Clear for the next batch
-
+        image_urls = []  # Clear image URLs for the next batch
 
 
 # Load the FAISS index and image URLs from disk
