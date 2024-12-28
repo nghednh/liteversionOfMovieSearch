@@ -83,8 +83,8 @@ def index_images():
     existing_image_urls_set = set(existing_image_urls) if existing_image_urls else set()
 
     while True:  # Loop to process batches
-        document_count = 0  # Initialize a counter for each batch
-        for movie in collection.find().limit(200):
+
+        for movie in collection.find():
             start_index = processed_count * 5  # Calculate batch start
             end_index = start_index + 5  # Calculate batch end
             batch_urls = movie['images'][start_index:end_index]  # Slice batch
@@ -98,8 +98,6 @@ def index_images():
             # After processing all image URLs for the current movie document
             if image_urls_for_movie:
                 image_urls.extend(image_urls_for_movie)  # Add valid image URLs to the main list
-                document_count += 1  # Increment the document count after processing
-                print(document_count)
         # If no new images, exit the loop
         if not image_urls:
             user_input = input(
@@ -134,15 +132,12 @@ def index_images():
             pickle.dump(all_image_urls, f)
 
         print(
-            f"Processed batch {processed_count + 1}: {len(image_urls)} images indexed. Document count: {document_count}.")
-
-        # Ask the user whether to continue
+            f"Processed batch {processed_count + 1}: {len(image_urls)} images indexed.")
         user_input = input("Continue with the next batch? (yes/no): ").strip().lower()
         if user_input not in ["yes", "y"]:
             print("Batch processing stopped by user.")
-            break  # Break out of the while loop if the user chooses to stop
+            break
 
-        # Increment processed_count and reset for the next batch
         processed_count += 1
         image_urls = []  # Clear image URLs for the next batch
 
