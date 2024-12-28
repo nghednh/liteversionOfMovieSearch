@@ -69,9 +69,9 @@ def batch_process_images(image_urls, batch_size=10):
 
 # Index movie posters in FAISS and save to disk
 def index_images():
-    # print("Indexing movie images.")  # Debugging statement
     image_embeddings = []
     image_urls = []
+    processed_count = 0  # Track the current batch count
 
     # Load existing index if it exists
     index, existing_image_urls = load_index()
@@ -82,36 +82,53 @@ def index_images():
     # Set of existing image URLs for comparison
     existing_image_urls_set = set(existing_image_urls) if existing_image_urls else set()
 
-    # Loop through movies and extract image URLs
-    for movie in collection.find().limit(15):
-        for img_url in movie['images']:
-            if img_url not in existing_image_urls_set:
-                image_urls.append(img_url)
+    while True:  # Loop to process batches
+        document_count = 0  # Initialize a counter
+        for movie in collection.find():
+            document_count += 1  # Increment the counter for each document
+            print(f"Reading document {document_count}")
+            start_index = processed_count * 5  # Calculate batch start
+            end_index = start_index + 5  # Calculate batch end
+            batch_urls = movie['images'][start_index:end_index]  # Slice batch
 
-    # If no new images, return without doing anything
-    if not image_urls:
-        # print("No new images to index.")
-        return
+            for img_url in batch_urls:
+                if img_url not in existing_image_urls_set:
+                    image_urls.append(img_url)
 
-    # Use concurrent processing to extract embeddings for new images (Batching added here)
-    image_embeddings = batch_process_images(image_urls)  # Batching and concurrency here
+        # If no new images, return without doing anything
+        if not image_urls:
+            return
 
-    # If the index is empty, create a new one
-    if index is None:
-        index = faiss.IndexFlatL2(image_embeddings.shape[1])  # L2 distance for similarity
+        # Use concurrent processing to extract embeddings for new images
+        image_embeddings = batch_process_images(image_urls)  # Batching and concurrency here
 
-    # Add the new embeddings to the existing index
-    index.add(image_embeddings)
+        # If the index is empty, create a new one
+        if index is None:
+            index = faiss.IndexFlatL2(image_embeddings.shape[1])  # L2 distance for similarity
 
-    # Save the updated FAISS index to a file
-    faiss.write_index(index, INDEX_FILE)
+        # Add the new embeddings to the existing index
+        index.add(image_embeddings)
 
-    all_image_urls = (existing_image_urls if existing_image_urls else []) + image_urls
+        # Save the updated FAISS index to a file
+        faiss.write_index(index, INDEX_FILE)
 
-    with open(IMAGE_URLS_FILE, "wb") as f:
-        pickle.dump(all_image_urls, f)
+        all_image_urls = (existing_image_urls if existing_image_urls else []) + image_urls
 
-    print("Image indexing complete.")  # Debugging statement
+        with open(IMAGE_URLS_FILE, "wb") as f:
+            pickle.dump(all_image_urls, f)
+
+        print(f"Processed batch {processed_count + 1}: {len(image_urls)} images indexed.")
+
+        # Ask the user whether to continue
+        user_input = input("Continue with the next batch? (yes/no): ").strip().lower()
+        if user_input not in ["yes", "y"]:
+            print("Batch processing stopped by user.")
+            break  # Properly break out of the while loop
+
+        # Increment processed_count and reset for the next batch
+        processed_count += 1
+        image_urls = []  # Clear for the next batch
+
 
 
 # Load the FAISS index and image URLs from disk
